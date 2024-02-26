@@ -54,7 +54,7 @@ modules:
     kind: map
     inputs:
       - params: string
-      - source: sf.solana.type.v1.Block
+      - map: map_block_without_votes
     output:
       type: proto:sol.transactions.v1.Instructions
     doc: |
