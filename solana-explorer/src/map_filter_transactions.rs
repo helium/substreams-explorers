@@ -19,6 +19,7 @@ fn map_filter_transactions(params: String, blk: Block) -> Result<Transactions, V
         .filter(|tx| apply_filter(tx, &filters))
         .for_each(|tx| {
             let msg = tx.transaction.as_ref().unwrap().message.as_ref().unwrap();
+            let header = msg.header.as_ref().unwrap();
             let acct_keys = tx.resolved_accounts();
 
             let insts: Vec<Instruction> = msg
@@ -29,7 +30,15 @@ fn map_filter_transactions(params: String, blk: Block) -> Result<Transactions, V
                     accounts: inst
                         .accounts
                         .iter()
-                        .map(|acct| bs58::encode(acct_keys[*acct as usize].to_vec()).into_string())
+                        .map(|acct| crate::pb::sol::transactions::v1::AccountMeta {
+                            pubkey: bs58::encode(acct_keys[*acct as usize].to_vec()).into_string(),
+                            is_writable: u32::from(*acct)
+                                < (header.num_required_signatures - header.num_readonly_signed_accounts)
+                                || (u32::from(*acct) >= header.num_required_signatures
+                                    && u32::from(*acct)
+                                        < ((msg.account_keys.len() as u32) - header.num_readonly_unsigned_accounts)),
+                            is_signer: u32::from(*acct) < header.num_required_signatures,
+                        })
                         .collect(),
                     data: bs58::encode(&inst.data).into_string(),
                 })

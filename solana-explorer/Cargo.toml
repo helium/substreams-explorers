@@ -1,6 +1,6 @@
 [package]
 name = "substreams-solana-explorer"
-version = "0.1.0"
+version = "0.3.0"
 description = "Substreams showcasing the building blocks of Solana"
 edition = "2021"
 repository = "https://github.com/streamingfast/substreams-explorers"

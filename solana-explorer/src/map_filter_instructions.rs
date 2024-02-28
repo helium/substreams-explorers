@@ -23,6 +23,7 @@ fn map_filter_instructions(params: String, blk: Block) -> Result<Instructions, s
             let ConfirmedTransaction { transaction, meta } = tx;
             let inner_instructions = &meta.as_ref().unwrap().inner_instructions;
             let msg = transaction.as_ref().unwrap().message.as_ref().unwrap();
+            let header = msg.header.as_ref().unwrap();
             let inner_instructions_by_index = inner_instructions
                 .into_iter()
                 .map(|i| (i.index, &i.instructions))
@@ -51,7 +52,16 @@ fn map_filter_instructions(params: String, blk: Block) -> Result<Instructions, s
                         accounts: inst
                             .accounts
                             .iter()
-                            .map(|acct| bs58::encode(resolved_accounts[*acct as usize].to_vec()).into_string())
+                            .map(|acct| crate::pb::sol::transactions::v1::AccountMeta {
+                                pubkey: bs58::encode(resolved_accounts[*acct as usize].to_vec()).into_string(),
+                                is_writable: u32::from(*acct)
+                                    < (header.num_required_signatures - header.num_readonly_signed_accounts)
+                                    || (u32::from(*acct) >= header.num_required_signatures
+                                        && u32::from(*acct)
+                                            < ((msg.account_keys.len() as u32)
+                                                - header.num_readonly_unsigned_accounts)),
+                                is_signer: u32::from(*acct) < header.num_required_signatures,
+                            })
                             .collect(),
                         data: bs58::encode(&inst.data).into_string(),
                     })
@@ -74,7 +84,16 @@ fn map_filter_instructions(params: String, blk: Block) -> Result<Instructions, s
                                 accounts: ix
                                     .accounts
                                     .iter()
-                                    .map(|acct| bs58::encode(resolved_accounts[*acct as usize].to_vec()).into_string())
+                                    .map(|acct| crate::pb::sol::transactions::v1::AccountMeta {
+                                        pubkey: bs58::encode(resolved_accounts[*acct as usize].to_vec()).into_string(),
+                                        is_writable: u32::from(*acct)
+                                            < (header.num_required_signatures - header.num_readonly_signed_accounts)
+                                            || (u32::from(*acct) >= header.num_required_signatures
+                                                && u32::from(*acct)
+                                                    < ((msg.account_keys.len() as u32)
+                                                        - header.num_readonly_unsigned_accounts)),
+                                        is_signer: u32::from(*acct) < header.num_required_signatures,
+                                    })
                                     .collect(),
                                 data: bs58::encode(&ix.data).into_string(),
                             }),
@@ -85,7 +104,10 @@ fn map_filter_instructions(params: String, blk: Block) -> Result<Instructions, s
         })
         .collect::<Vec<_>>();
 
-    Ok(Instructions { instructions })
+    Ok(Instructions {
+        instructions,
+        slot: blk.slot,
+    })
 }
 
 fn parse_filters_from_params(params: String) -> Result<InstructionFilterParams, substreams::errors::Error> {

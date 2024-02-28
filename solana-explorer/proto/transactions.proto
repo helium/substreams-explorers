@@ -5,12 +5,19 @@ package sol.transactions.v1;
 
 message Instructions {
   repeated Instruction instructions = 1;
+  uint64 slot = 2;
 }
 
 message Instruction {
   string program_id = 1;
-  repeated string accounts = 2;
+  repeated AccountMeta accounts = 2;
   string data = 3;
+}
+
+message AccountMeta {
+  string pubkey =   1;
+  bool is_writable = 2;
+  bool is_signer = 3;
 }
 
 message Transactions {
